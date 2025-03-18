@@ -158,13 +158,13 @@ class TranscriberBot:
         now = datetime.now()
         last_request_time = self.user_last_request[user_id]
         if (now - last_request_time).seconds < self.cooldown_seconds:
-            await update.message.reply_text(f"Please wait {self.cooldown_seconds - (now - last_request_time).seconds} seconds before making another request.")
+            await print(f"Please wait {self.cooldown_seconds - (now - last_request_time).seconds} seconds before making another request.")
             return
 
         # Rate limiting logic
         minute_ago = now - timedelta(minutes=1)
         if self.user_request_counts[user_id] >= self.max_requests_per_minute and last_request_time > minute_ago:
-            await update.message.reply_text("You have reached the maximum number of requests per minute. Please try again later.")
+            await print("You have reached the maximum number of requests per minute. Please try again later.")
             return
 
         # Update request count and last request time
@@ -189,9 +189,9 @@ class TranscriberBot:
 
                 # Check if this is the only job and nothing is currently processing.
                 response_text = "⏳ Your request is next and is currently being processed." if queue_length == 1 else f"Your request has been added to the queue. There are {queue_length - 1} jobs ahead of yours."
-                await update.message.reply_text(response_text)
+                await print(response_text)
             else:
-                await update.message.reply_text("❌ No valid URL detected in your message. Please send a message that includes a valid URL. If you need help, type: /help")
+                await print("❌ No valid URL detected in your message. Please send a message that includes a valid URL. If you need help, type: /help")
 
     # async def process_queue(self):
     #     while True:
@@ -221,7 +221,8 @@ class TranscriberBot:
 
                             video_info_message = ""  # Set a default empty value for video_info_message
                             ai_transcript_header = ""  # Set a default empty value for ai_transcript_header
-                            transcription_note = "📝🔊 <i>(transcribed audio)</i>\n\n"  # Define transcription note
+                            #transcription_note = "📝🔊 <i>(transcribed audio)</i>\n\n"  # Define transcription note
+                            transcription_note = ''
 
                             if isinstance(task, str) and task.startswith('http'):
                                 logger.info(f"Processing URL: {task}")
@@ -244,7 +245,7 @@ class TranscriberBot:
 
                                 logger.info(gpu_message)
                                 try:
-                                    await bot.send_message(chat_id=update.effective_chat.id, text=gpu_message)
+                                    await print(chat_id=update.effective_chat.id, text=gpu_message)
                                 except Exception as e:
                                     logger.error(f"Failed to send GPU message: {e}")
 
@@ -280,7 +281,7 @@ class TranscriberBot:
                                 )
                                 logger.info(detailed_message)
                                 try:
-                                    await bot.send_message(chat_id=update.effective_chat.id, text=detailed_message)
+                                    await print(chat_id=update.effective_chat.id, text=detailed_message)
                                 except Exception as e:
                                     logger.error(f"Failed to send detailed message: {e}")
 
@@ -308,8 +309,7 @@ class TranscriberBot:
                                         with open(file_path, 'r') as f:
                                             content = f.read()
                                             if self.config.getboolean('TranscriptionSettings', 'includeheaderintranscription'):
-                                                ai_transcript_header = f"[ Transcript generated with: https://github.com/FlyingFathead/whisper-transcriber-telegram-bot/ | OpenAI Whisper model: `{model}` | Language: `{language}` ]"
-                                                header_content = f"{video_info_message}\n\n{ai_transcript_header}\n\n"
+                                                header_content = f"{video_info_message}\n"
                                                 content = content[len(header_content):]
                                             content = transcription_note + content  # Add transcription note
 
@@ -325,7 +325,9 @@ class TranscriberBot:
                                         # Send each chunk
                                         for i, chunk in enumerate(chunks):
                                             try:
-                                                await bot.send_message(chat_id=update.effective_chat.id, text=chunk, parse_mode='HTML')
+                                                chunk = re.sub('\[.*\]', '', chunk)
+                                                
+                                                await bot.send_message(chat_id=update.effective_chat.id, reply_to_message_id=update.message.message_id,text=chunk, parse_mode='HTML',)
                                                 logger.info(f"Sent message chunk: {i + 1}")
                                             except Exception as e:
                                                 logger.error(f"Error sending message chunk {i + 1}: {e}")
@@ -344,6 +346,7 @@ class TranscriberBot:
                                         # Continue to send files even if sending messages fails
 
                                 # Proceed to send files as per your existing logic
+                                '''
                                 if self.config.getboolean('TranscriptionSettings', 'sendasfiles'):
                                     for fmt, path in transcription_paths.items():
                                         try:
@@ -357,6 +360,7 @@ class TranscriberBot:
                                                 await bot.send_message(chat_id=update.effective_chat.id, text=f"An error occurred while sending the {fmt} file.")
                                             except Exception as e:
                                                 logger.error(f"Failed to send error message to user: {e}")
+                                '''
 
                                 # Mark the task as successful
                                 success = True
@@ -384,6 +388,7 @@ class TranscriberBot:
                             if success and notification_settings['send_completion_message']:
                                 try:
                                     completion_message = notification_settings['completion_message']
+                                    completion_message = ''
                                     await bot.send_message(chat_id=update.effective_chat.id, text=completion_message)
                                     logger.info(f"Sent completion message to user ID {user_id}: {completion_message}")
                                 except Exception as e:
@@ -416,7 +421,7 @@ class TranscriberBot:
 
         if not context.args:
             # Display the supported languages if no argument is provided
-            await update.message.reply_text(
+            await print(
                 f"Please specify a supported language code or set to <code>auto</code> for autodetect.\n\nExamples:\n<code>/language en</code>\n<code>/language auto</code>\n\n"
                 f"Supported languages are: {', '.join(supported_languages)}",
                 parse_mode='HTML'
@@ -509,9 +514,6 @@ class TranscriberBot:
     <b>Available Whisper models:</b>
     {models_list}
 
-    <b>Bot code by FlyingFathead.</b>
-    Source code: <a href='https://github.com/FlyingFathead/whisper-transcriber-telegram-bot/'>GitHub</a>.
-
     <b>Disclaimer:</b>
     The original author of this program is NOT responsible for how this service is utilized. All code and outputs are provided 'AS IS' without warranty of any kind. Users assume full responsibility for the operation and output of the bot. This applies to both legal and ethical responsibilities. Use at your own risk.
     """
@@ -578,7 +580,7 @@ class TranscriberBot:
             await self.task_queue.put((wav_file_path, context.bot, update))
             queue_length = self.task_queue.qsize()
             response_text = "Your request is next and is currently being processed." if queue_length == 1 else f"Your request has been added to the queue. There are {queue_length - 1} jobs ahead of yours."
-            await update.message.reply_text(response_text)
+            await print(response_text)
         except subprocess.CalledProcessError as e:
             logger.error(f"Error converting voice message: {e}")
 
@@ -651,7 +653,7 @@ class TranscriberBot:
                 if queue_length == 1
                 else f"Your request has been added to the queue. There are {queue_length - 1} jobs ahead of yours."
             )
-            await update.message.reply_text(response_text)
+            await print(response_text)
             logger.info(f"File queued for transcription. Queue length: {queue_length}")
         except Exception as e:
             logger.error(f"Exception in handle_audio_file: {e}")
@@ -709,7 +711,7 @@ class TranscriberBot:
                     if queue_length == 1
                     else f"Your request has been added to the queue. There are {queue_length - 1} jobs ahead of yours."
                 )
-                await update.message.reply_text(response_text)
+                await print(response_text)
                 logger.info(f"Audio file queued for transcription. Queue length: {queue_length}")
 
             except subprocess.CalledProcessError as e:
